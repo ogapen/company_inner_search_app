@@ -25,7 +25,7 @@ except ImportError:
 APP_NAME = "社内情報特化型生成AI検索アプリ"
 ANSWER_MODE_1 = "社内文書検索"
 ANSWER_MODE_2 = "社内問い合わせ"
-CHAT_INPUT_HELPER_TEXT = "Shift+Enterで送信してください"
+CHAT_INPUT_HELPER_TEXT = "こちらからメッセージを送信してください。"
 DOC_SOURCE_ICON = ":material/description: "
 LINK_SOURCE_ICON = ":material/link: "
 WARNING_ICON = ":material/warning:"
