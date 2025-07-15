@@ -84,72 +84,57 @@ except Exception as e:
 ############################################################
 # 6. チャット入力の受け付け
 ############################################################
-# Shift+Enterで送信するためのJavaScript
+# Shift+Enterで送信するためのJavaScript（改良版）
 st.markdown("""
 <script>
 // Streamlitのチャット入力でShift+Enterを送信に設定
-(function() {
-    function setupShiftEnterHandler() {
-        // チャット入力要素を取得
-        const chatInput = document.querySelector('[data-testid="stChatInput"] textarea');
-        
-        if (chatInput && !chatInput.hasAttribute('data-shift-enter-handler')) {
+function setupShiftEnterHandler() {
+    // チャット入力要素を取得
+    const chatInputs = document.querySelectorAll('[data-testid="stChatInput"] textarea');
+    
+    chatInputs.forEach(function(chatInput) {
+        if (!chatInput.dataset.shiftEnterSetup) {
             // 重複防止のためのマーカーを設定
-            chatInput.setAttribute('data-shift-enter-handler', 'true');
+            chatInput.dataset.shiftEnterSetup = 'true';
             
             chatInput.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                    // 通常のEnterキーは改行（デフォルトの動作を維持）
-                    return true;
-                } else if (event.key === 'Enter' && event.shiftKey) {
+                if (event.key === 'Enter' && event.shiftKey) {
                     // Shift+Enterで送信
                     event.preventDefault();
                     event.stopPropagation();
                     
                     // 送信ボタンを探してクリック
-                    const sendButton = document.querySelector('[data-testid="stChatInput"] button[kind="primary"]');
-                    if (sendButton) {
-                        sendButton.click();
+                    const container = chatInput.closest('[data-testid="stChatInput"]');
+                    if (container) {
+                        const sendButton = container.querySelector('button');
+                        if (sendButton && !sendButton.disabled) {
+                            sendButton.click();
+                        }
                     }
-                    return false;
                 }
+                // 通常のEnterキーは改行（デフォルトの動作を維持）
             });
         }
-    }
-    
-    // 初回実行
-    setupShiftEnterHandler();
-    
-    // MutationObserverを使用してDOM変更を監視
-    const observer = new MutationObserver(function(mutations) {
-        let shouldSetup = false;
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'childList') {
-                mutation.addedNodes.forEach(function(node) {
-                    if (node.nodeType === 1 && (node.querySelector('[data-testid="stChatInput"]') || node.getAttribute('data-testid') === 'stChatInput')) {
-                        shouldSetup = true;
-                    }
-                });
-            }
-        });
-        if (shouldSetup) {
-            setTimeout(setupShiftEnterHandler, 100);
-        }
     });
-    
-    // DOM全体を監視
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-    
-    // 定期的なチェックも追加（フォールバック）
-    setInterval(setupShiftEnterHandler, 1000);
-})();
+}
+
+// 初回実行と定期実行
+setTimeout(setupShiftEnterHandler, 500);
+setInterval(setupShiftEnterHandler, 1000);
 </script>
 """, unsafe_allow_html=True)
 
-chat_message = st.chat_input("Shift+Enterで送信してください")
+# カスタムCSS（プレースホルダーテキスト改善）
+st.markdown("""
+<style>
+[data-testid="stChatInput"] input::placeholder {
+    color: #666;
+    font-style: italic;
+}
+</style>
+""", unsafe_allow_html=True)
+
+chat_message = st.chat_input("💡 Shift+Enterで送信、Enterで改行")
 
 
 ############################################################
