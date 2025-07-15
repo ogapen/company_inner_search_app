@@ -38,3 +38,13 @@ tornado==6.5.1
 typing_extensions==4.14.1
 tzdata==2025.2
 urllib3==2.5.0
+
+# Additional dependencies for the application
+python-dotenv==1.0.0
+langchain==0.1.0
+langchain-community==0.0.13
+langchain-openai==0.0.5
+python-docx==0.8.11
+PyMuPDF==1.23.14
+docx2txt==0.8
+chromadb==0.4.22
