@@ -84,57 +84,17 @@ except Exception as e:
 ############################################################
 # 6. チャット入力の受け付け
 ############################################################
-# Shift+Enterで送信するためのJavaScript（改良版）
-st.markdown("""
-<script>
-// Streamlitのチャット入力でShift+Enterを送信に設定
-function setupShiftEnterHandler() {
-    // チャット入力要素を取得
-    const chatInputs = document.querySelectorAll('[data-testid="stChatInput"] textarea');
-    
-    chatInputs.forEach(function(chatInput) {
-        if (!chatInput.dataset.shiftEnterSetup) {
-            // 重複防止のためのマーカーを設定
-            chatInput.dataset.shiftEnterSetup = 'true';
-            
-            chatInput.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter' && event.shiftKey) {
-                    // Shift+Enterで送信
-                    event.preventDefault();
-                    event.stopPropagation();
-                    
-                    // 送信ボタンを探してクリック
-                    const container = chatInput.closest('[data-testid="stChatInput"]');
-                    if (container) {
-                        const sendButton = container.querySelector('button');
-                        if (sendButton && !sendButton.disabled) {
-                            sendButton.click();
-                        }
-                    }
-                }
-                // 通常のEnterキーは改行（デフォルトの動作を維持）
-            });
-        }
-    });
-}
+# StreamlitCommunityCloudの制限により、Shift+Enter機能は動作しない可能性があります
+# 代わりに、明確な操作案内を提供します
 
-// 初回実行と定期実行
-setTimeout(setupShiftEnterHandler, 500);
-setInterval(setupShiftEnterHandler, 1000);
-</script>
-""", unsafe_allow_html=True)
+# 操作案内のメッセージ
+st.info("📝 **チャット入力の使い方**\n\n"
+        "• **改行**: 通常のEnterキー\n"
+        "• **送信**: 送信ボタンをクリック\n"
+        "• **複数行入力**: 改行で複数行のメッセージを作成できます")
 
-# カスタムCSS（プレースホルダーテキスト改善）
-st.markdown("""
-<style>
-[data-testid="stChatInput"] input::placeholder {
-    color: #666;
-    font-style: italic;
-}
-</style>
-""", unsafe_allow_html=True)
-
-chat_message = st.chat_input("💡 Shift+Enterで送信、Enterで改行")
+# チャット入力（シンプルな案内）
+chat_message = st.chat_input("メッセージを入力してください（改行可能）")
 
 
 ############################################################
