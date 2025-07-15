@@ -36,14 +36,26 @@ def initialize():
     """
     画面読み込み時に実行する初期化処理
     """
-    # 初期化データの用意
-    initialize_session_state()
-    # ログ出力用にセッションIDを生成
-    initialize_session_id()
-    # ログ出力の設定
-    initialize_logger()
-    # RAGのRetrieverを作成
-    initialize_retriever()
+    try:
+        # 初期化データの用意
+        initialize_session_state()
+        print("[DEBUG] Session state initialized")
+        
+        # ログ出力用にセッションIDを生成
+        initialize_session_id()
+        print("[DEBUG] Session ID initialized")
+        
+        # ログ出力の設定
+        initialize_logger()
+        print("[DEBUG] Logger initialized")
+        
+        # RAGのRetrieverを作成
+        initialize_retriever()
+        print("[DEBUG] Retriever initialized")
+        
+    except Exception as e:
+        print(f"[ERROR] Initialization failed: {str(e)}")
+        raise
 
 
 def initialize_logger():
@@ -180,9 +192,18 @@ def load_data_sources():
     docs_all = []
     
     try:
+        # データフォルダの存在確認
+        if not os.path.exists(ct.RAG_TOP_FOLDER_PATH):
+            logger.warning(f"Data folder not found: {ct.RAG_TOP_FOLDER_PATH}")
+            print(f"[WARNING] Data folder not found: {ct.RAG_TOP_FOLDER_PATH}")
+        else:
+            logger.info(f"Data folder found: {ct.RAG_TOP_FOLDER_PATH}")
+            print(f"[INFO] Data folder found: {ct.RAG_TOP_FOLDER_PATH}")
+        
         # ファイル読み込みの実行（渡した各リストにデータが格納される）
         recursive_file_check(ct.RAG_TOP_FOLDER_PATH, docs_all)
         logger.info(f"Loaded {len(docs_all)} documents from local files")
+        print(f"[INFO] Loaded {len(docs_all)} documents from local files")
 
         web_docs_all = []
         # ファイルとは別に、指定のWebページ内のデータも読み込み
@@ -195,16 +216,20 @@ def load_data_sources():
                 # for文の外のリストに読み込んだデータソースを追加
                 web_docs_all.extend(web_docs)
                 logger.info(f"Loaded {len(web_docs)} documents from {web_url}")
+                print(f"[INFO] Loaded {len(web_docs)} documents from {web_url}")
             except Exception as e:
                 logger.warning(f"Failed to load web content from {web_url}: {str(e)}")
+                print(f"[WARNING] Failed to load web content from {web_url}: {str(e)}")
                 continue
         
         # 通常読み込みのデータソースにWebページのデータを追加
         docs_all.extend(web_docs_all)
         logger.info(f"Total documents loaded: {len(docs_all)}")
+        print(f"[INFO] Total documents loaded: {len(docs_all)}")
         
     except Exception as e:
         logger.error(f"Error loading data sources: {str(e)}")
+        print(f"[ERROR] Error loading data sources: {str(e)}")
         raise
 
     return docs_all
@@ -218,19 +243,24 @@ def recursive_file_check(path, docs_all):
         path: 読み込み対象のファイル/フォルダのパス
         docs_all: データソースを格納する用のリスト
     """
-    # パスがフォルダかどうかを確認
-    if os.path.isdir(path):
-        # フォルダの場合、フォルダ内のファイル/フォルダ名の一覧を取得
-        files = os.listdir(path)
-        # 各ファイル/フォルダに対して処理
-        for file in files:
-            # ファイル/フォルダ名だけでなく、フルパスを取得
-            full_path = os.path.join(path, file)
-            # フルパスを渡し、再帰的にファイル読み込みの関数を実行
-            recursive_file_check(full_path, docs_all)
-    else:
-        # パスがファイルの場合、ファイル読み込み
-        file_load(path, docs_all)
+    try:
+        # パスがフォルダかどうかを確認
+        if os.path.isdir(path):
+            # フォルダの場合、フォルダ内のファイル/フォルダ名の一覧を取得
+            files = os.listdir(path)
+            print(f"[DEBUG] Checking directory: {path}, found {len(files)} items")
+            # 各ファイル/フォルダに対して処理
+            for file in files:
+                # ファイル/フォルダ名だけでなく、フルパスを取得
+                full_path = os.path.join(path, file)
+                # フルパスを渡し、再帰的にファイル読み込みの関数を実行
+                recursive_file_check(full_path, docs_all)
+        else:
+            # パスがファイルの場合、ファイル読み込み
+            file_load(path, docs_all)
+    except Exception as e:
+        print(f"[ERROR] Error in recursive_file_check for {path}: {str(e)}")
+        raise
 
 
 def file_load(path, docs_all):
@@ -241,17 +271,26 @@ def file_load(path, docs_all):
         path: ファイルパス
         docs_all: データソースを格納する用のリスト
     """
-    # ファイルの拡張子を取得
-    file_extension = os.path.splitext(path)[1]
-    # ファイル名（拡張子を含む）を取得
-    file_name = os.path.basename(path)
+    try:
+        # ファイルの拡張子を取得
+        file_extension = os.path.splitext(path)[1]
+        # ファイル名（拡張子を含む）を取得
+        file_name = os.path.basename(path)
 
-    # 想定していたファイル形式の場合のみ読み込む
-    if file_extension in ct.SUPPORTED_EXTENSIONS:
-        # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
-        loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
-        docs = loader.load()
-        docs_all.extend(docs)
+        # 想定していたファイル形式の場合のみ読み込む
+        if file_extension in ct.SUPPORTED_EXTENSIONS:
+            print(f"[DEBUG] Loading file: {path}")
+            # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
+            loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
+            docs = loader.load()
+            docs_all.extend(docs)
+            print(f"[DEBUG] Loaded {len(docs)} documents from {path}")
+        else:
+            print(f"[DEBUG] Skipping unsupported file: {path} (extension: {file_extension})")
+    except Exception as e:
+        print(f"[ERROR] Error loading file {path}: {str(e)}")
+        # ファイル読み込みエラーは警告のみで処理を継続
+        pass
 
 
 def adjust_string(s):
