@@ -11,6 +11,8 @@ from logging.handlers import TimedRotatingFileHandler
 from uuid import uuid4
 import sys
 import unicodedata
+import csv
+import pandas as pd
 from dotenv import load_dotenv
 import streamlit as st
 from docx import Document
@@ -18,6 +20,7 @@ from langchain_community.document_loaders import WebBaseLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain.schema import Document as LangChainDocument
 import constants as ct
 
 
@@ -280,17 +283,114 @@ def file_load(path, docs_all):
         # 想定していたファイル形式の場合のみ読み込む
         if file_extension in ct.SUPPORTED_EXTENSIONS:
             print(f"[DEBUG] Loading file: {path}")
-            # ファイルの拡張子に合ったdata loaderを使ってデータ読み込み
-            loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
-            docs = loader.load()
-            docs_all.extend(docs)
-            print(f"[DEBUG] Loaded {len(docs)} documents from {path}")
+            
+            # CSVファイルの場合は特別な処理を行う
+            if file_extension == ".csv":
+                csv_docs = load_csv_as_unified_document(path)
+                docs_all.extend(csv_docs)
+                print(f"[DEBUG] Loaded {len(csv_docs)} unified documents from CSV: {path}")
+            else:
+                # 他のファイル形式は通常通り処理
+                loader = ct.SUPPORTED_EXTENSIONS[file_extension](path)
+                docs = loader.load()
+                docs_all.extend(docs)
+                print(f"[DEBUG] Loaded {len(docs)} documents from {path}")
         else:
             print(f"[DEBUG] Skipping unsupported file: {path} (extension: {file_extension})")
     except Exception as e:
         print(f"[ERROR] Error loading file {path}: {str(e)}")
         # ファイル読み込みエラーは警告のみで処理を継続
         pass
+
+
+def load_csv_as_unified_document(csv_path):
+    """
+    CSVファイルを統合されたドキュメントとして読み込む
+    
+    Args:
+        csv_path: CSVファイルのパス
+    
+    Returns:
+        統合されたドキュメントのリスト
+    """
+    try:
+        # CSVファイルを読み込む
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            reader = csv.DictReader(file)
+            rows = list(reader)
+        
+        if not rows:
+            return []
+        
+        # 部署別に従業員情報を統合
+        department_groups = {}
+        for row in rows:
+            department = row.get('部署', '不明')
+            if department not in department_groups:
+                department_groups[department] = []
+            department_groups[department].append(row)
+        
+        # 統合されたドキュメントを作成
+        unified_docs = []
+        
+        for department, employees in department_groups.items():
+            # 部署別の統合テキストを作成
+            department_text = f"■ {department}の従業員一覧\n\n"
+            
+            for i, emp in enumerate(employees, 1):
+                department_text += f"{i}. {emp.get('氏名（フルネーム）', '不明')} ({emp.get('社員ID', '不明')})\n"
+                department_text += f"   役職: {emp.get('役職', '不明')}\n"
+                department_text += f"   従業員区分: {emp.get('従業員区分', '不明')}\n"
+                department_text += f"   年齢: {emp.get('年齢', '不明')}歳\n"
+                department_text += f"   入社日: {emp.get('入社日', '不明')}\n"
+                department_text += f"   スキルセット: {emp.get('スキルセット', '不明')}\n"
+                department_text += f"   保有資格: {emp.get('保有資格', '不明')}\n"
+                department_text += f"   大学: {emp.get('大学名', '不明')} {emp.get('学部・学科', '不明')}\n"
+                department_text += f"   メールアドレス: {emp.get('メールアドレス', '不明')}\n\n"
+            
+            # 統合されたドキュメントとして作成
+            unified_doc = LangChainDocument(
+                page_content=department_text,
+                metadata={
+                    "source": csv_path,
+                    "department": department,
+                    "employee_count": len(employees),
+                    "type": "department_summary"
+                }
+            )
+            unified_docs.append(unified_doc)
+        
+        # 全社員の統合リストも作成
+        all_employees_text = "■ 全社員一覧\n\n"
+        for i, row in enumerate(rows, 1):
+            all_employees_text += f"{i}. {row.get('氏名（フルネーム）', '不明')} ({row.get('社員ID', '不明')})\n"
+            all_employees_text += f"   部署: {row.get('部署', '不明')}\n"
+            all_employees_text += f"   役職: {row.get('役職', '不明')}\n"
+            all_employees_text += f"   従業員区分: {row.get('従業員区分', '不明')}\n"
+            all_employees_text += f"   年齢: {row.get('年齢', '不明')}歳\n"
+            all_employees_text += f"   スキルセット: {row.get('スキルセット', '不明')}\n\n"
+        
+        all_employees_doc = LangChainDocument(
+            page_content=all_employees_text,
+            metadata={
+                "source": csv_path,
+                "department": "全社",
+                "employee_count": len(rows),
+                "type": "all_employees_summary"
+            }
+        )
+        unified_docs.append(all_employees_doc)
+        
+        return unified_docs
+        
+    except Exception as e:
+        print(f"[ERROR] Error in load_csv_as_unified_document: {str(e)}")
+        # エラーが発生した場合は通常のCSVLoader処理にフォールバック
+        try:
+            loader = ct.SUPPORTED_EXTENSIONS[".csv"](csv_path)
+            return loader.load()
+        except:
+            return []
 
 
 def adjust_string(s):
