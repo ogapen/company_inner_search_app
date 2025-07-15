@@ -125,6 +125,12 @@ def initialize_retriever():
     # if "retriever" in st.session_state:
     #     return
     
+    # CSVファイルの統合処理を確実に反映させるため、強制的にリトリバーを再構築
+    if "retriever" in st.session_state:
+        logger.info("Forcing retriever recreation for CSV unified processing")
+        print("[DEBUG] Forcing retriever recreation for CSV unified processing")
+        del st.session_state.retriever
+    
     # OpenAI API キーの確認
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
@@ -338,6 +344,11 @@ def load_csv_as_unified_document(csv_path):
         print(f"[DEBUG] Department groups: {list(department_groups.keys())}")
         for dept, emps in department_groups.items():
             print(f"[DEBUG] {dept}: {len(emps)} employees")
+            # 人事部の場合、詳細情報を出力
+            if dept == "人事部":
+                print(f"[DEBUG] 人事部員詳細:")
+                for emp in emps:
+                    print(f"[DEBUG]   - {emp.get('氏名（フルネーム）', '不明')} ({emp.get('社員ID', '不明')})")
         
         # 統合されたドキュメントを作成
         unified_docs = []
@@ -358,6 +369,11 @@ def load_csv_as_unified_document(csv_path):
                 department_text += f"   メールアドレス: {emp.get('メールアドレス', '不明')}\n\n"
             
             print(f"[DEBUG] Created unified document for {department} with {len(employees)} employees")
+            
+            # 人事部の場合、作成されたドキュメントの内容を一部出力
+            if department == "人事部":
+                print(f"[DEBUG] 人事部統合ドキュメント内容（最初の500文字）:")
+                print(f"[DEBUG] {department_text[:500]}...")
             
             # 統合されたドキュメントとして作成
             unified_doc = LangChainDocument(
