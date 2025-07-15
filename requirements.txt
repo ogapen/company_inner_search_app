@@ -6,4 +6,4 @@ langchain-openai
 python-docx
 PyMuPDF
 docx2txt
-chromadb
+faiss-cpu
