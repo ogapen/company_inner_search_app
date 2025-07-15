@@ -114,33 +114,46 @@ def initialize_retriever():
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY environment variable is not set")
     
-    # RAGの参照先となるデータソースの読み込み
-    docs_all = load_data_sources()
+    try:
+        # RAGの参照先となるデータソースの読み込み
+        docs_all = load_data_sources()
+        
+        if not docs_all:
+            raise ValueError("No documents found to create embeddings")
 
-    # OSがWindowsの場合、Unicode正規化と、cp932（Windows用の文字コード）で表現できない文字を除去
-    for doc in docs_all:
-        doc.page_content = adjust_string(doc.page_content)
-        for key in doc.metadata:
-            doc.metadata[key] = adjust_string(doc.metadata[key])
-    
-    # 埋め込みモデルの用意
-    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-    
-    # チャンク分割用のオブジェクトを作成
-    text_splitter = CharacterTextSplitter(
-        chunk_size=ct.CHUNK_SIZE,
-        chunk_overlap=ct.CHUNK_OVERLAP,
-        separator="\n"
-    )
+        # OSがWindowsの場合、Unicode正規化と、cp932（Windows用の文字コード）で表現できない文字を除去
+        for doc in docs_all:
+            doc.page_content = adjust_string(doc.page_content)
+            for key in doc.metadata:
+                doc.metadata[key] = adjust_string(doc.metadata[key])
+        
+        # 埋め込みモデルの用意
+        embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+        
+        # チャンク分割用のオブジェクトを作成
+        text_splitter = CharacterTextSplitter(
+            chunk_size=ct.CHUNK_SIZE,
+            chunk_overlap=ct.CHUNK_OVERLAP,
+            separator="\n"
+        )
 
-    # チャンク分割を実施
-    splitted_docs = text_splitter.split_documents(docs_all)
+        # チャンク分割を実施
+        splitted_docs = text_splitter.split_documents(docs_all)
+        
+        if not splitted_docs:
+            raise ValueError("No documents after splitting")
 
-    # ベクターストアの作成
-    db = Chroma.from_documents(splitted_docs, embedding=embeddings)
+        # ベクターストアの作成
+        db = Chroma.from_documents(splitted_docs, embedding=embeddings)
 
-    # ベクターストアを検索するRetrieverの作成
-    st.session_state.retriever = db.as_retriever(search_kwargs={"k": ct.RETRIEVER_SEARCH_COUNT})
+        # ベクターストアを検索するRetrieverの作成
+        st.session_state.retriever = db.as_retriever(search_kwargs={"k": ct.RETRIEVER_SEARCH_COUNT})
+        
+        logger.info(f"Retriever created successfully with {len(splitted_docs)} document chunks")
+        
+    except Exception as e:
+        logger.error(f"Error in initialize_retriever: {str(e)}")
+        raise
 
 
 def initialize_session_state():
@@ -161,22 +174,38 @@ def load_data_sources():
     Returns:
         読み込んだ通常データソース
     """
+    logger = logging.getLogger(ct.LOGGER_NAME)
+    
     # データソースを格納する用のリスト
     docs_all = []
-    # ファイル読み込みの実行（渡した各リストにデータが格納される）
-    recursive_file_check(ct.RAG_TOP_FOLDER_PATH, docs_all)
+    
+    try:
+        # ファイル読み込みの実行（渡した各リストにデータが格納される）
+        recursive_file_check(ct.RAG_TOP_FOLDER_PATH, docs_all)
+        logger.info(f"Loaded {len(docs_all)} documents from local files")
 
-    web_docs_all = []
-    # ファイルとは別に、指定のWebページ内のデータも読み込み
-    # 読み込み対象のWebページ一覧に対して処理
-    for web_url in ct.WEB_URL_LOAD_TARGETS:
-        # 指定のWebページを読み込み
-        loader = WebBaseLoader(web_url)
-        web_docs = loader.load()
-        # for文の外のリストに読み込んだデータソースを追加
-        web_docs_all.extend(web_docs)
-    # 通常読み込みのデータソースにWebページのデータを追加
-    docs_all.extend(web_docs_all)
+        web_docs_all = []
+        # ファイルとは別に、指定のWebページ内のデータも読み込み
+        # 読み込み対象のWebページ一覧に対して処理
+        for web_url in ct.WEB_URL_LOAD_TARGETS:
+            try:
+                # 指定のWebページを読み込み
+                loader = WebBaseLoader(web_url)
+                web_docs = loader.load()
+                # for文の外のリストに読み込んだデータソースを追加
+                web_docs_all.extend(web_docs)
+                logger.info(f"Loaded {len(web_docs)} documents from {web_url}")
+            except Exception as e:
+                logger.warning(f"Failed to load web content from {web_url}: {str(e)}")
+                continue
+        
+        # 通常読み込みのデータソースにWebページのデータを追加
+        docs_all.extend(web_docs_all)
+        logger.info(f"Total documents loaded: {len(docs_all)}")
+        
+    except Exception as e:
+        logger.error(f"Error loading data sources: {str(e)}")
+        raise
 
     return docs_all
 
