@@ -121,8 +121,9 @@ def initialize_retriever():
     logger = logging.getLogger(ct.LOGGER_NAME)
 
     # すでにRetrieverが作成済みの場合、後続の処理を中断
-    if "retriever" in st.session_state:
-        return
+    # デバッグ用：強制的にリセットするためのコメントアウト
+    # if "retriever" in st.session_state:
+    #     return
     
     # OpenAI API キーの確認
     openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -314,10 +315,14 @@ def load_csv_as_unified_document(csv_path):
         統合されたドキュメントのリスト
     """
     try:
+        print(f"[DEBUG] Processing CSV file: {csv_path}")
+        
         # CSVファイルを読み込む
         with open(csv_path, 'r', encoding='utf-8') as file:
             reader = csv.DictReader(file)
             rows = list(reader)
+        
+        print(f"[DEBUG] CSV rows loaded: {len(rows)}")
         
         if not rows:
             return []
@@ -329,6 +334,10 @@ def load_csv_as_unified_document(csv_path):
             if department not in department_groups:
                 department_groups[department] = []
             department_groups[department].append(row)
+        
+        print(f"[DEBUG] Department groups: {list(department_groups.keys())}")
+        for dept, emps in department_groups.items():
+            print(f"[DEBUG] {dept}: {len(emps)} employees")
         
         # 統合されたドキュメントを作成
         unified_docs = []
@@ -347,6 +356,8 @@ def load_csv_as_unified_document(csv_path):
                 department_text += f"   保有資格: {emp.get('保有資格', '不明')}\n"
                 department_text += f"   大学: {emp.get('大学名', '不明')} {emp.get('学部・学科', '不明')}\n"
                 department_text += f"   メールアドレス: {emp.get('メールアドレス', '不明')}\n\n"
+            
+            print(f"[DEBUG] Created unified document for {department} with {len(employees)} employees")
             
             # 統合されたドキュメントとして作成
             unified_doc = LangChainDocument(
@@ -381,12 +392,15 @@ def load_csv_as_unified_document(csv_path):
         )
         unified_docs.append(all_employees_doc)
         
+        print(f"[DEBUG] Total unified documents created: {len(unified_docs)}")
+        
         return unified_docs
         
     except Exception as e:
         print(f"[ERROR] Error in load_csv_as_unified_document: {str(e)}")
         # エラーが発生した場合は通常のCSVLoader処理にフォールバック
         try:
+            print(f"[DEBUG] Falling back to normal CSV loader")
             loader = ct.SUPPORTED_EXTENSIONS[".csv"](csv_path)
             return loader.load()
         except:
