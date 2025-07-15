@@ -7,6 +7,12 @@
 ############################################################
 from langchain_community.document_loaders import PyMuPDFLoader, Docx2txtLoader, TextLoader
 from langchain_community.document_loaders.csv_loader import CSVLoader
+try:
+    from langchain_community.document_loaders import UnstructuredWordDocumentLoader
+    DOCX_LOADER = UnstructuredWordDocumentLoader
+except ImportError:
+    # UnstructuredWordDocumentLoaderが利用できない場合はDocx2txtLoaderを使用
+    DOCX_LOADER = Docx2txtLoader
 
 
 ############################################################
@@ -49,8 +55,8 @@ TEMPERATURE = 0.5
 RAG_TOP_FOLDER_PATH = "./data"
 SUPPORTED_EXTENSIONS = {
     ".pdf": PyMuPDFLoader,
-    ".docx": Docx2txtLoader,
-    ".csv": lambda path: CSVLoader(path, encoding="utf-8")
+    ".docx": DOCX_LOADER,
+    ".csv": lambda path: CSVLoader(path, encoding="utf-8", source_column="source", metadata_columns=["row"])
 }
 WEB_URL_LOAD_TARGETS = [
     "https://generative-ai.web-camp.io/"

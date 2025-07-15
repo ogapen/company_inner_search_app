@@ -109,6 +109,8 @@ def display_conversation_log():
                         # 参照元ドキュメントのページ番号が取得できた場合にのみ、ページ番号を表示
                         if "main_page_number" in message["content"]:
                             st.success(f"{message['content']['main_file_path']}（ページ{message['content']['main_page_number']}）", icon=icon)
+                        elif "main_row_number" in message["content"]:
+                            st.success(f"{message['content']['main_file_path']}（行{message['content']['main_row_number']}）", icon=icon)
                         else:
                             st.success(f"{message['content']['main_file_path']}", icon=icon)
                         
@@ -126,6 +128,8 @@ def display_conversation_log():
                                 # 参照元ドキュメントのページ番号が取得できた場合にのみ、ページ番号を表示
                                 if "page_number" in sub_choice:
                                     st.info(f"{sub_choice['source']}（ページ{sub_choice['page_number']}）", icon=icon)
+                                elif "row_number" in sub_choice:
+                                    st.info(f"{sub_choice['source']}（行{sub_choice['row_number']}）", icon=icon)
                                 else:
                                     st.info(f"{sub_choice['source']}", icon=icon)
                     # ファイルのありかの情報が取得できなかった場合、LLMからの回答のみ表示
@@ -145,8 +149,13 @@ def display_conversation_log():
                         st.markdown(f"##### {message['content']['message']}")
                         # ドキュメントのありかを一覧表示
                         for file_info in message["content"]["file_info_list"]:
-                            # ファイルパスを抽出（ページ番号がある場合は除去）
-                            file_path = file_info.split("（ページ")[0] if "（ページ" in file_info else file_info
+                            # ファイルパスを抽出（ページ番号や行番号がある場合は除去）
+                            if "（ページ" in file_info:
+                                file_path = file_info.split("（ページ")[0]
+                            elif "（行" in file_info:
+                                file_path = file_info.split("（行")[0]
+                            else:
+                                file_path = file_info
                             # 参照元のありかに応じて、適したアイコンを取得
                             icon = utils.get_source_icon(file_path)
                             st.info(file_info, icon=icon)
@@ -183,6 +192,11 @@ def display_search_llm_response(llm_response):
             main_page_number = llm_response["context"][0].metadata["page"]
             # 「メインドキュメントのファイルパス」と「ページ番号」を表示
             st.success(f"{main_file_path}（ページ{main_page_number}）", icon=icon)
+        elif "row" in llm_response["context"][0].metadata:
+            # 行番号を取得（CSVファイルの場合）
+            main_row_number = llm_response["context"][0].metadata["row"]
+            # 「メインドキュメントのファイルパス」と「行番号」を表示
+            st.success(f"{main_file_path}（行{main_row_number}）", icon=icon)
         else:
             # 「メインドキュメントのファイルパス」を表示
             st.success(f"{main_file_path}", icon=icon)
@@ -218,6 +232,11 @@ def display_search_llm_response(llm_response):
                 sub_page_number = document.metadata["page"]
                 # 「サブドキュメントのファイルパス」と「ページ番号」の辞書を作成
                 sub_choice = {"source": sub_file_path, "page_number": sub_page_number}
+            elif "row" in document.metadata:
+                # 行番号を取得（CSVファイルの場合）
+                sub_row_number = document.metadata["row"]
+                # 「サブドキュメントのファイルパス」と「行番号」の辞書を作成
+                sub_choice = {"source": sub_file_path, "row_number": sub_row_number}
             else:
                 # 「サブドキュメントのファイルパス」の辞書を作成
                 sub_choice = {"source": sub_file_path}
@@ -239,6 +258,9 @@ def display_search_llm_response(llm_response):
                 if "page_number" in sub_choice:
                     # 「サブドキュメントのファイルパス」と「ページ番号」を表示
                     st.info(f"{sub_choice['source']}（ページ{sub_choice['page_number']}）", icon=icon)
+                elif "row_number" in sub_choice:
+                    # 「サブドキュメントのファイルパス」と「行番号」を表示
+                    st.info(f"{sub_choice['source']}（行{sub_choice['row_number']}）", icon=icon)
                 else:
                     # 「サブドキュメントのファイルパス」を表示
                     st.info(f"{sub_choice['source']}", icon=icon)
@@ -257,6 +279,8 @@ def display_search_llm_response(llm_response):
         # メインドキュメントのページ番号は、取得できた場合にのみ追加
         if "page" in llm_response["context"][0].metadata:
             content["main_page_number"] = main_page_number
+        elif "row" in llm_response["context"][0].metadata:
+            content["main_row_number"] = llm_response["context"][0].metadata["row"]
         # サブドキュメントの情報は、取得できた場合にのみ追加
         if sub_choices:
             content["sub_message"] = sub_message
@@ -319,6 +343,11 @@ def display_contact_llm_response(llm_response):
                 page_number = document.metadata["page"]
                 # 「ファイルパス」と「ページ番号」
                 file_info = f"{file_path}（ページ{page_number}）"
+            elif "row" in document.metadata:
+                # 行番号を取得（CSVファイルの場合）
+                row_number = document.metadata["row"]
+                # 「ファイルパス」と「行番号」
+                file_info = f"{file_path}（行{row_number}）"
             else:
                 # 「ファイルパス」のみ
                 file_info = f"{file_path}"
