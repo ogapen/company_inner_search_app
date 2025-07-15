@@ -68,11 +68,11 @@ WEB_URL_LOAD_TARGETS = [
 # RAG設定系
 # ==========================================
 # ベクターストアから取得する関連ドキュメント数
-RETRIEVER_SEARCH_COUNT = 5
+RETRIEVER_SEARCH_COUNT = 10
 # ドキュメントチャンク分割時のチャンクサイズ
-CHUNK_SIZE = 500
+CHUNK_SIZE = 1000
 # ドキュメントチャンク分割時のチャンクオーバーラップ
-CHUNK_OVERLAP = 50
+CHUNK_OVERLAP = 100
 
 
 # ==========================================
