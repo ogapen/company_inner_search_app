@@ -130,7 +130,7 @@ def initialize_retriever():
     text_splitter = CharacterTextSplitter(
         chunk_size=ct.CHUNK_SIZE,
         chunk_overlap=ct.CHUNK_OVERLAP,
-        separator=ct.CHUNK_SEPARATOR
+        separator="\n"
     )
 
     # チャンク分割を実施
@@ -140,7 +140,7 @@ def initialize_retriever():
     db = Chroma.from_documents(splitted_docs, embedding=embeddings)
 
     # ベクターストアを検索するRetrieverの作成
-    st.session_state.retriever = db.as_retriever(search_kwargs={"k": ct.RETRIEVER_SEARCH_K})
+    st.session_state.retriever = db.as_retriever(search_kwargs={"k": ct.RETRIEVER_SEARCH_COUNT})
 
 
 def initialize_session_state():
