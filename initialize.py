@@ -128,6 +128,11 @@ def initialize_retriever():
     # 改善のため、毎回Retrieverを再作成
     print("[DEBUG] Force recreating retriever for CSV improvements")
     
+    # 既存のRetrieverを削除
+    if "retriever" in st.session_state:
+        del st.session_state.retriever
+        print("[DEBUG] Cleared existing retriever")
+    
     # OpenAI API キーの確認
     openai_api_key = os.getenv("OPENAI_API_KEY")
     if not openai_api_key:
@@ -162,6 +167,10 @@ def initialize_retriever():
         if not splitted_docs:
             raise ValueError("No documents after splitting")
 
+        # 各チャンクの情報をデバッグ出力
+        hr_chunks = [doc for doc in splitted_docs if "人事部" in doc.page_content]
+        print(f"[DEBUG] HR-related chunks: {len(hr_chunks)}")
+        
         # ベクターストアの作成
         db = FAISS.from_documents(splitted_docs, embeddings)
 
@@ -170,6 +179,12 @@ def initialize_retriever():
         
         logger.info(f"Retriever created successfully with {len(splitted_docs)} document chunks")
         print(f"[DEBUG] Retriever created successfully with {len(splitted_docs)} document chunks")
+        
+        # デバッグ用：人事部関連の検索テスト
+        test_docs = st.session_state.retriever.get_relevant_documents("人事部に所属している従業員")
+        print(f"[DEBUG] Test search returned {len(test_docs)} documents")
+        for i, doc in enumerate(test_docs[:3]):
+            print(f"[DEBUG] Test doc {i+1}: {doc.page_content[:200]}...")
         
     except Exception as e:
         logger.error(f"Error in initialize_retriever: {str(e)}")
@@ -332,114 +347,18 @@ def load_csv_as_unified_document(csv_path):
         if not rows:
             return []
         
-        # 部署別に従業員情報を統合
-        department_groups = {}
-        for row in rows:
-            department = row.get('部署', '不明')
-            if department not in department_groups:
-                department_groups[department] = []
-            department_groups[department].append(row)
-        
-        print(f"[DEBUG] Department groups: {list(department_groups.keys())}")
-        for dept, emps in department_groups.items():
-            print(f"[DEBUG] {dept}: {len(emps)} employees")
-        
         # 統合されたドキュメントを作成
         unified_docs = []
         
-        for department, employees in department_groups.items():
-            # 部署別の統合テキストを作成（検索キーワードを強化）
-            department_text = f"■ {department}の従業員一覧\n"
-            department_text += f"部署名: {department}\n"
-            department_text += f"所属人数: {len(employees)}名\n\n"
-            
-            # 各従業員の詳細情報を追加
-            for i, emp in enumerate(employees, 1):
-                name = emp.get('氏名（フルネーム）', '不明')
-                emp_id = emp.get('社員ID', '不明')
-                position = emp.get('役職', '不明')
-                emp_type = emp.get('従業員区分', '不明')
-                age = emp.get('年齢', '不明')
-                join_date = emp.get('入社日', '不明')
-                skills = emp.get('スキルセット', '不明')
-                qualifications = emp.get('保有資格', '不明')
-                university = emp.get('大学名', '不明')
-                faculty = emp.get('学部・学科', '不明')
-                email = emp.get('メールアドレス', '不明')
-                
-                department_text += f"{i}. 従業員情報\n"
-                department_text += f"   氏名: {name}\n"
-                department_text += f"   社員ID: {emp_id}\n"
-                department_text += f"   部署: {department}\n"
-                department_text += f"   役職: {position}\n"
-                department_text += f"   従業員区分: {emp_type}\n"
-                department_text += f"   年齢: {age}歳\n"
-                department_text += f"   入社日: {join_date}\n"
-                department_text += f"   スキルセット: {skills}\n"
-                department_text += f"   保有資格: {qualifications}\n"
-                department_text += f"   大学: {university} {faculty}\n"
-                department_text += f"   メールアドレス: {email}\n"
-                department_text += f"   所属部署: {department}\n\n"
-            
-            print(f"[DEBUG] Created unified document for {department} with {len(employees)} employees")
-            
-            # 統合されたドキュメントとして作成
-            unified_doc = LangChainDocument(
-                page_content=department_text,
-                metadata={
-                    "source": csv_path,
-                    "department": department,
-                    "employee_count": len(employees),
-                    "type": "department_summary",
-                    "file_name": os.path.basename(csv_path)
-                }
-            )
-            unified_docs.append(unified_doc)
+        # 人事部専用の大きな統合ドキュメントを作成（最優先）
+        hr_employees = [row for row in rows if row.get('部署') == '人事部']
+        print(f"[DEBUG] HR employees found: {len(hr_employees)}")
         
-        # 全社員の統合リストも作成（検索性を向上）
-        all_employees_text = "■ 全社員一覧（社員名簿）\n\n"
-        
-        # 部署別のサマリー
-        all_employees_text += "部署別人数:\n"
-        for dept, employees in department_groups.items():
-            all_employees_text += f"- {dept}: {len(employees)}名\n"
-        all_employees_text += "\n"
-        
-        # 全従業員の詳細
-        for i, row in enumerate(rows, 1):
-            name = row.get('氏名（フルネーム）', '不明')
-            emp_id = row.get('社員ID', '不明')
-            department = row.get('部署', '不明')
-            position = row.get('役職', '不明')
-            emp_type = row.get('従業員区分', '不明')
-            age = row.get('年齢', '不明')
-            skills = row.get('スキルセット', '不明')
-            
-            all_employees_text += f"{i}. {name} ({emp_id})\n"
-            all_employees_text += f"   部署: {department}\n"
-            all_employees_text += f"   役職: {position}\n"
-            all_employees_text += f"   従業員区分: {emp_type}\n"
-            all_employees_text += f"   年齢: {age}歳\n"
-            all_employees_text += f"   スキルセット: {skills}\n\n"
-        
-        all_employees_doc = LangChainDocument(
-            page_content=all_employees_text,
-            metadata={
-                "source": csv_path,
-                "department": "全社",
-                "employee_count": len(rows),
-                "type": "all_employees_summary",
-                "file_name": os.path.basename(csv_path)
-            }
-        )
-        unified_docs.append(all_employees_doc)
-        
-        # 人事部の特別な検索用ドキュメントを作成
-        hr_employees = department_groups.get('人事部', [])
         if hr_employees:
-            hr_text = "■ 人事部従業員詳細情報\n"
-            hr_text += f"人事部所属従業員数: {len(hr_employees)}名\n\n"
-            hr_text += "人事部に所属している従業員一覧:\n"
+            # 人事部の大きな統合ドキュメント
+            hr_text = "■ 人事部従業員完全一覧\n"
+            hr_text += f"人事部所属従業員総数: {len(hr_employees)}名\n\n"
+            hr_text += "人事部に所属している従業員情報一覧:\n\n"
             
             for i, emp in enumerate(hr_employees, 1):
                 name = emp.get('氏名（フルネーム）', '不明')
@@ -454,18 +373,25 @@ def load_csv_as_unified_document(csv_path):
                 faculty = emp.get('学部・学科', '不明')
                 email = emp.get('メールアドレス', '不明')
                 
-                hr_text += f"\n{i}. 人事部従業員\n"
-                hr_text += f"   氏名: {name}\n"
-                hr_text += f"   社員ID: {emp_id}\n"
-                hr_text += f"   部署: 人事部\n"
-                hr_text += f"   役職: {position}\n"
-                hr_text += f"   従業員区分: {emp_type}\n"
-                hr_text += f"   年齢: {age}歳\n"
-                hr_text += f"   入社日: {join_date}\n"
-                hr_text += f"   スキルセット: {skills}\n"
-                hr_text += f"   保有資格: {qualifications}\n"
-                hr_text += f"   大学: {university} {faculty}\n"
-                hr_text += f"   メールアドレス: {email}\n"
+                hr_text += f"【{i}】人事部従業員\n"
+                hr_text += f"氏名: {name}\n"
+                hr_text += f"社員ID: {emp_id}\n"
+                hr_text += f"部署: 人事部\n"
+                hr_text += f"役職: {position}\n"
+                hr_text += f"従業員区分: {emp_type}\n"
+                hr_text += f"年齢: {age}歳\n"
+                hr_text += f"入社日: {join_date}\n"
+                hr_text += f"スキルセット: {skills}\n"
+                hr_text += f"保有資格: {qualifications}\n"
+                hr_text += f"大学: {university} {faculty}\n"
+                hr_text += f"メールアドレス: {email}\n"
+                hr_text += f"人事部所属: はい\n"
+                hr_text += f"人事部門: 人事部\n\n"
+            
+            # 人事部の名前リスト
+            hr_text += "人事部従業員名簿:\n"
+            for i, emp in enumerate(hr_employees, 1):
+                hr_text += f"{i}. {emp.get('氏名（フルネーム）', '不明')} ({emp.get('社員ID', '不明')})\n"
             
             hr_doc = LangChainDocument(
                 page_content=hr_text,
@@ -473,13 +399,80 @@ def load_csv_as_unified_document(csv_path):
                     "source": csv_path,
                     "department": "人事部",
                     "employee_count": len(hr_employees),
-                    "type": "hr_department_detail",
-                    "file_name": os.path.basename(csv_path)
+                    "type": "hr_complete_list",
+                    "file_name": os.path.basename(csv_path),
+                    "description": "人事部全従業員の完全な一覧"
                 }
             )
             unified_docs.append(hr_doc)
+            print(f"[DEBUG] Created HR complete document with {len(hr_employees)} employees")
+        
+        # 部署別の統合ドキュメントを作成
+        department_groups = {}
+        for row in rows:
+            department = row.get('部署', '不明')
+            if department not in department_groups:
+                department_groups[department] = []
+            department_groups[department].append(row)
+        
+        print(f"[DEBUG] Department groups: {list(department_groups.keys())}")
+        
+        for department, employees in department_groups.items():
+            # 部署別統合ドキュメント
+            dept_text = f"■ {department}の従業員一覧\n"
+            dept_text += f"部署名: {department}\n"
+            dept_text += f"所属人数: {len(employees)}名\n\n"
             
-            print(f"[DEBUG] Created special HR document with {len(hr_employees)} employees")
+            for i, emp in enumerate(employees, 1):
+                name = emp.get('氏名（フルネーム）', '不明')
+                emp_id = emp.get('社員ID', '不明')
+                position = emp.get('役職', '不明')
+                skills = emp.get('スキルセット', '不明')
+                
+                dept_text += f"{i}. {name} ({emp_id})\n"
+                dept_text += f"   部署: {department}\n"
+                dept_text += f"   役職: {position}\n"
+                dept_text += f"   スキルセット: {skills}\n\n"
+            
+            dept_doc = LangChainDocument(
+                page_content=dept_text,
+                metadata={
+                    "source": csv_path,
+                    "department": department,
+                    "employee_count": len(employees),
+                    "type": "department_summary",
+                    "file_name": os.path.basename(csv_path)
+                }
+            )
+            unified_docs.append(dept_doc)
+        
+        # 全社員の統合ドキュメント
+        all_text = "■ 全社員名簿\n"
+        all_text += f"全社員数: {len(rows)}名\n\n"
+        
+        # 部署別サマリー
+        all_text += "部署別従業員数:\n"
+        for dept, employees in department_groups.items():
+            all_text += f"- {dept}: {len(employees)}名\n"
+        all_text += "\n"
+        
+        # 全従業員リスト
+        for i, row in enumerate(rows, 1):
+            all_text += f"{i}. {row.get('氏名（フルネーム）', '不明')} ({row.get('社員ID', '不明')})\n"
+            all_text += f"   部署: {row.get('部署', '不明')}\n"
+            all_text += f"   役職: {row.get('役職', '不明')}\n\n"
+        
+        all_doc = LangChainDocument(
+            page_content=all_text,
+            metadata={
+                "source": csv_path,
+                "department": "全社",
+                "employee_count": len(rows),
+                "type": "all_employees_summary",
+                "file_name": os.path.basename(csv_path)
+            }
+        )
+        unified_docs.append(all_doc)
         
         print(f"[DEBUG] Total unified documents created: {len(unified_docs)}")
         
