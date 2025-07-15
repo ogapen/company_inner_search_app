@@ -84,7 +84,39 @@ except Exception as e:
 ############################################################
 # 6. チャット入力の受け付け
 ############################################################
-chat_message = st.chat_input(ct.CHAT_INPUT_HELPER_TEXT)
+# Shift+Enterで送信するためのJavaScript
+st.markdown("""
+<script>
+// Streamlitのチャット入力でShift+Enterを送信に設定
+document.addEventListener('DOMContentLoaded', function() {
+    // 少し遅延を入れてDOM要素が確実に読み込まれてから実行
+    setTimeout(function() {
+        const chatInput = document.querySelector('[data-testid="stChatInput"] textarea');
+        if (chatInput) {
+            chatInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                    // 通常のEnterキーを無効化
+                    event.preventDefault();
+                    event.stopPropagation();
+                } else if (event.key === 'Enter' && event.shiftKey) {
+                    // Shift+Enterで送信
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    // 送信ボタンを探してクリック
+                    const sendButton = document.querySelector('[data-testid="stChatInput"] button[kind="primary"]');
+                    if (sendButton) {
+                        sendButton.click();
+                    }
+                }
+            });
+        }
+    }, 100);
+});
+</script>
+""", unsafe_allow_html=True)
+
+chat_message = st.chat_input("Shift+Enterで送信してください")
 
 
 ############################################################

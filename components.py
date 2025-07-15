@@ -76,6 +76,9 @@ def display_initial_ai_message():
         
         # 基本的な挨拶メッセージを表示
         st.markdown("こんにちは。私は社内文書の情報をもとに回答する生成AIチャットボットです。サイドバーで利用目的を選択し、画面下部のチャット欄からメッセージを送信してください。")
+        
+        # 操作方法の説明
+        st.info("💡 **操作方法**: Shift+Enterで送信、通常のEnterキーで改行ができます。")
 
 
 def display_conversation_log():
