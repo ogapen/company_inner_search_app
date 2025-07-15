@@ -88,16 +88,19 @@ except Exception as e:
 st.markdown("""
 <script>
 // Streamlitのチャット入力でShift+Enterを送信に設定
-document.addEventListener('DOMContentLoaded', function() {
-    // 少し遅延を入れてDOM要素が確実に読み込まれてから実行
-    setTimeout(function() {
+(function() {
+    function setupShiftEnterHandler() {
+        // チャット入力要素を取得
         const chatInput = document.querySelector('[data-testid="stChatInput"] textarea');
-        if (chatInput) {
+        
+        if (chatInput && !chatInput.hasAttribute('data-shift-enter-handler')) {
+            // 重複防止のためのマーカーを設定
+            chatInput.setAttribute('data-shift-enter-handler', 'true');
+            
             chatInput.addEventListener('keydown', function(event) {
                 if (event.key === 'Enter' && !event.shiftKey) {
-                    // 通常のEnterキーを無効化
-                    event.preventDefault();
-                    event.stopPropagation();
+                    // 通常のEnterキーは改行（デフォルトの動作を維持）
+                    return true;
                 } else if (event.key === 'Enter' && event.shiftKey) {
                     // Shift+Enterで送信
                     event.preventDefault();
@@ -108,11 +111,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (sendButton) {
                         sendButton.click();
                     }
+                    return false;
                 }
             });
         }
-    }, 100);
-});
+    }
+    
+    // 初回実行
+    setupShiftEnterHandler();
+    
+    // MutationObserverを使用してDOM変更を監視
+    const observer = new MutationObserver(function(mutations) {
+        let shouldSetup = false;
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1 && (node.querySelector('[data-testid="stChatInput"]') || node.getAttribute('data-testid') === 'stChatInput')) {
+                        shouldSetup = true;
+                    }
+                });
+            }
+        });
+        if (shouldSetup) {
+            setTimeout(setupShiftEnterHandler, 100);
+        }
+    });
+    
+    // DOM全体を監視
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // 定期的なチェックも追加（フォールバック）
+    setInterval(setupShiftEnterHandler, 1000);
+})();
 </script>
 """, unsafe_allow_html=True)
 
