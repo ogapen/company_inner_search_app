@@ -84,13 +84,98 @@ except Exception as e:
 ############################################################
 # 6. チャット入力の受け付け
 ############################################################
-chat_message = st.chat_input(ct.CHAT_INPUT_HELPER_TEXT)
+# カスタムCSS and JavaScript for Shift+Enter functionality
+st.markdown("""
+<style>
+    .chat-input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--background-color);
+        border-top: 1px solid var(--border-color);
+        padding: 1rem;
+        z-index: 1000;
+    }
+    
+    .chat-input-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+    
+    .chat-input-area {
+        flex: 1;
+    }
+    
+    .chat-send-button {
+        height: 2.5rem;
+        min-width: 80px;
+    }
+    
+    .chat-help-text {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<script>
+function handleTextAreaKeyDown(event) {
+    if (event.key === 'Enter' && event.shiftKey) {
+        event.preventDefault();
+        // Shift+Enterが押された場合、送信ボタンをクリック
+        document.querySelector('[data-testid="send_button"]').click();
+    }
+}
+
+// テキストエリアにイベントリスナーを追加
+document.addEventListener('DOMContentLoaded', function() {
+    const textArea = document.querySelector('[data-testid="chat_input"]');
+    if (textArea) {
+        textArea.addEventListener('keydown', handleTextAreaKeyDown);
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# チャット入力エリアの作成
+col1, col2 = st.columns([0.85, 0.15])
+
+with col1:
+    chat_message = st.text_area(
+        label="メッセージを入力してください",
+        placeholder=ct.CHAT_INPUT_HELPER_TEXT,
+        height=100,
+        max_chars=1000,
+        key="chat_input",
+        label_visibility="collapsed"
+    )
+    st.markdown('<div class="chat-help-text">Shift+Enterで送信、改行はEnterキーで入力できます</div>', unsafe_allow_html=True)
+
+with col2:
+    st.write("")  # スペースを作る
+    st.write("")  # スペースを作る
+    send_button = st.button(
+        "送信",
+        key="send_button",
+        type="primary",
+        use_container_width=True
+    )
+
+# 送信処理の判定
+should_send = False
+if send_button and chat_message and chat_message.strip():
+    should_send = True
+    # メッセージをクリアするため、セッションステートを更新
+    st.session_state.chat_input = ""
+    st.rerun()
 
 
 ############################################################
 # 7. チャット送信時の処理
 ############################################################
-if chat_message:
+if should_send:
     # ==========================================
     # 7-1. ユーザーメッセージの表示
     # ==========================================
