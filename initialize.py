@@ -12,7 +12,6 @@ from uuid import uuid4
 import sys
 import unicodedata
 import csv
-import pandas as pd
 from dotenv import load_dotenv
 import streamlit as st
 from docx import Document
