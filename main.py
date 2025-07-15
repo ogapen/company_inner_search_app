@@ -114,25 +114,35 @@ if chat_message:
     # ==========================================
     # 7-2. LLMからの回答取得
     # ==========================================
-    # 「st.spinner」でグルグル回っている間、表示の不具合が発生しないよう空のエリアを表示
-    res_box = st.empty()
-    # LLMによる回答生成（回答生成が完了するまでグルグル回す）
-    with st.spinner(ct.SPINNER_TEXT):
+    # リアルタイム進捗表示用のコンテナ
+    progress_container = st.empty()
+    
+    # 進捗更新用のコールバック関数
+    def update_progress(message):
+        progress_container.info(message)
+    
+    # AIメッセージの表示準備
+    with st.chat_message("assistant"):
         try:
-            # 画面読み込み時に作成したRetrieverを使い、Chainを実行
-            llm_response = utils.get_llm_response(chat_message)
+            # 実際のLLM処理を実行（進捗コールバック付き）
+            llm_response = utils.get_llm_response(chat_message, update_progress)
+            
+            # 進捗表示をクリア
+            progress_container.empty()
+            
         except Exception as e:
             # エラーログの出力
             logger.error(f"{ct.GET_LLM_RESPONSE_ERROR_MESSAGE}\n{e}")
+            # 進捗表示をクリア
+            progress_container.empty()
             # エラーメッセージの画面表示
             st.error(utils.build_error_message(ct.GET_LLM_RESPONSE_ERROR_MESSAGE), icon=ct.ERROR_ICON)
             # 後続の処理を中断
             st.stop()
-    
-    # ==========================================
-    # 7-3. LLMからの回答表示
-    # ==========================================
-    with st.chat_message("assistant"):
+        
+        # ==========================================
+        # 7-3. LLMからの回答表示
+        # ==========================================
         try:
             # ==========================================
             # モードが「社内文書検索」の場合
