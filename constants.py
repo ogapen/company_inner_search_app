@@ -56,7 +56,8 @@ RAG_TOP_FOLDER_PATH = "./data"
 SUPPORTED_EXTENSIONS = {
     ".pdf": PyMuPDFLoader,
     ".docx": DOCX_LOADER,
-    ".csv": lambda path: CSVLoader(path, encoding="utf-8", source_column="source", metadata_columns=["row"])
+    ".csv": lambda path: CSVLoader(path, encoding="utf-8", source_column="source", metadata_columns=["row"]),
+    ".txt": lambda path: TextLoader(path, encoding="utf-8")
 }
 WEB_URL_LOAD_TARGETS = [
     "https://generative-ai.web-camp.io/"
